@@ -1,75 +1,61 @@
-import { Workflow, Result } from "./workflow.ts";
-import { ProtocolMessage, Reply } from "./protocol.ts";
+import { Workflow } from "./workflow.ts";
+import { PromptMessage } from "./protocol.ts";
 
 export class Session {
-  public result?: Result;
-
   constructor(
-    private readonly sessionId: string,
     private readonly workflow: Workflow,
-    private readonly dispatch: (message: ProtocolMessage) => Promise<void>,
-    private readonly onResult: (result: Result) => void
+    private readonly sendPrompt: (message: PromptMessage) => Promise<void>
   ) {}
 
-  async handle(message: ProtocolMessage) {
-    switch (message.type) {
-      case "start":
-        this.start();
-        return;
-      case "reply":
-        this.reply(message);
-        return;
-      default:
-        return;
-    }
+  static submitPromptResult(promptId: string, result: any) {
+    const channel = new BroadcastChannel(promptId);
+    channel.postMessage(result);
   }
 
-  private readonly prompts = new Map<string, (result: any) => void>();
+  private channels = new Set<BroadcastChannel>();
 
-  async prompt(question: string, type: "boolean"): Promise<boolean>;
-  async prompt(question: string, type: "string"): Promise<string>;
-  async prompt<T>(question: string, kind: "boolean" | "string"): Promise<T> {
+  private async prompt(question: string, type: "boolean"): Promise<boolean>;
+  private async prompt(question: string, type: "string"): Promise<string>;
+  private async prompt<T>(
+    question: string,
+    kind: "boolean" | "string"
+  ): Promise<T> {
     return new Promise<T>(async (resolve) => {
-      const id = crypto.randomUUID();
-      this.prompts.set(id, resolve);
-      await this.dispatch({
+      const promptId = crypto.randomUUID();
+      this.sendPrompt({
         type: "prompt",
-        prompt: question,
-        id,
+        id: promptId,
         kind,
+        prompt: question,
       });
+
+      const channel = new BroadcastChannel(promptId);
+      channel.addEventListener("message", (event) => {
+        const result = event.data as T;
+        resolve(result);
+        channel.close();
+        this.channels.delete(channel);
+      });
+      this.channels.add(channel);
     });
   }
 
-  reply(message: Reply) {
-    const prompt = this.prompts.get(message.id);
-    if (!prompt) {
-      return;
-    }
+  private readonly abortController = new AbortController();
 
-    prompt(message.result);
-  }
-
-  start() {
-    this.workflow(
+  async run() {
+    return await this.workflow(
       {
         boolean: (q) => this.prompt(q, "boolean"),
         string: (q) => this.prompt(q, "string"),
       },
       {
-        sessionId: this.sessionId,
+        abortController: this.abortController,
       }
-    )
-      .then(async (result) => {
-        this.result = result;
-        await this.dispatch({
-          type: "result",
-          payload: result,
-        });
-        this.onResult(result);
-      })
-      .catch((failure) => {
-        console.error(failure);
-      });
+    );
+  }
+
+  cancel() {
+    this.abortController.abort();
+    this.channels.forEach((channel) => channel.close());
   }
 }

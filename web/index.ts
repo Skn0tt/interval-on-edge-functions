@@ -40,8 +40,8 @@ async function setupUI() {
     const button = document.createElement("button");
     button.innerText = workflow.name;
     button.onclick = async () => {
-      const session = await workflow.start(promptUI);
-      session.onResult(onResult);
+      const result = await workflow.start(promptUI);
+      onResult(result);
     };
     workflowListEl.appendChild(button);
   }

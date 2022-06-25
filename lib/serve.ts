@@ -5,7 +5,20 @@ import { EdgeFunction } from "netlify:edge";
 
 export function serve(workflows: Record<string, Workflow>): EdgeFunction {
   return async function (request) {
-    const workflowName = new URL(request.url).searchParams.get("workflow");
+    const url = new URL(request.url);
+
+    const promptId = url.searchParams.get("promptId");
+    if (promptId) {
+      const resultB64 = url.searchParams.get("result");
+      if (!resultB64) {
+        throw new Error("parameter `result` is required");
+      }
+      const result = JSON.parse(atob(resultB64));
+      Session.submitPromptResult(promptId, result);
+      return new Response(undefined, { status: 202 });
+    }
+
+    const workflowName = url.searchParams.get("workflow");
     if (!workflowName) {
       return new Response(JSON.stringify(Object.keys(workflows)), {
         headers: {
@@ -21,43 +34,32 @@ export function serve(workflows: Record<string, Workflow>): EdgeFunction {
       });
     }
 
-    const sessionId = crypto.randomUUID();
-    const simpleMQEndpoint = Deno.env.get("SIMPLEMQ_WS_ENDPOINT");
-    if (!simpleMQEndpoint) {
-      throw new Error("SIMPLEMQ_WS_ENDPOINT env var needs to be set");
-    }
+    let session: Session | undefined = undefined;
 
-    const sock = new WebSocket(simpleMQEndpoint);
-    sock.onopen = () => {
-      sock.send(sessionId);
-    };
+    const body = new ReadableStream({
+      async start(controller) {
+        async function send(message: ProtocolMessage) {
+          const json = JSON.stringify(message);
+          const msg = new TextEncoder().encode(`data: ${json}\r\n`);
+          controller.enqueue(msg);
+        }
 
-    const session = new Session(
-      sessionId,
-      workflow,
-      async (message) => {
-        sock.send(JSON.stringify(message));
+        session = new Session(workflow, send);
+        const result = await session.run();
+        await send({
+          type: "result",
+          payload: result,
+        });
       },
-      () => {
-        sock.close();
-      }
-    );
+      cancel() {
+        session?.cancel();
+      },
+    });
 
-    sock.onmessage = async (event) => {
-      const payload = JSON.parse(event.data) as ProtocolMessage;
-      await session.handle(payload);
-    };
-
-    return new Response(
-      JSON.stringify({
-        endpoint: simpleMQEndpoint,
-        sessionId,
-      }),
-      {
-        headers: {
-          "content-type": "application/json",
-        },
-      }
-    );
+    return new Response(body, {
+      headers: {
+        "content-type": "text/event-stream",
+      },
+    });
   };
 }

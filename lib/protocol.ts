@@ -1,23 +1,14 @@
-export interface StartMessage {
-  type: "start";
-}
-
-export interface Prompt {
+import type { Result } from "./workflow.ts";
+export interface PromptMessage {
   type: "prompt";
   prompt: string;
   kind: "string" | "boolean";
   id: string;
 }
 
-export interface Reply {
-  type: "reply";
-  id: string;
-  result: any;
-}
-
-export interface Result {
+export interface ResultMessage {
   type: "result";
-  payload: any;
+  payload: Result;
 }
 
-export type ProtocolMessage = StartMessage | Prompt | Reply | Result;
+export type ProtocolMessage = PromptMessage | ResultMessage;

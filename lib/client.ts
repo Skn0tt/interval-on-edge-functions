@@ -8,24 +8,7 @@ export interface PromptUI {
 
 export interface Workflow {
   name: string;
-  start(promptUI: PromptUI): Promise<SessionState>;
-}
-
-export class SessionState {
-  public result?: Result;
-  constructor(public readonly id: string) {}
-
-  setResult(value: Result) {
-    this.result = value;
-    for (const listener of this.listeners) {
-      listener(value);
-    }
-  }
-
-  private readonly listeners: ((result: Result) => void)[] = [];
-  onResult(listener: (result: Result) => void) {
-    this.listeners.push(listener);
-  }
+  start(promptUI: PromptUI): Promise<Result>;
 }
 
 export class Client {
@@ -44,42 +27,32 @@ export class Client {
   private async start(
     workflowName: string,
     promptUI: PromptUI
-  ): Promise<SessionState> {
-    const response = await fetch(`${this.endpoint}?workflow=${workflowName}`);
-    const { endpoint, sessionId } = await response.json();
-    const sessionState = new SessionState(sessionId);
+  ): Promise<Result> {
+    return new Promise<Result>((resolve) => {
+      const eventSource = new EventSource(
+        `${this.endpoint}?workflow=${workflowName}`
+      );
 
-    const socket = new WebSocket(endpoint);
-    function dispatch(message: ProtocolMessage) {
-      socket.send(JSON.stringify(message));
-    }
+      const sendReply = (promptId: string, result: any) =>
+        fetch(
+          `${this.endpoint}?promptId=${promptId}&result=${btoa(
+            JSON.stringify(result)
+          )}`
+        );
 
-    socket.addEventListener("open", () => {
-      socket.send(sessionId);
-      dispatch({
-        type: "start",
-      });
+      eventSource.onmessage = async (event) => {
+        const message = JSON.parse(event.data) as ProtocolMessage;
+        switch (message.type) {
+          case "prompt":
+            const method = promptUI[message.kind];
+            const answer = await method(message.prompt);
+            await sendReply(message.id, answer);
+            return;
+          case "result":
+            resolve(message.payload);
+            return;
+        }
+      };
     });
-
-    socket.onmessage = async (event) => {
-      const message = JSON.parse(event.data) as ProtocolMessage;
-
-      switch (message.type) {
-        case "prompt":
-          const method = promptUI[message.kind];
-          const answer = await method(message.prompt);
-          dispatch({
-            type: "reply",
-            id: message.id,
-            result: answer,
-          });
-          return;
-        case "result":
-          sessionState.setResult(message.payload);
-          return;
-      }
-    };
-
-    return sessionState;
   }
 }

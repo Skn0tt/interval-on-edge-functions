@@ -1,10 +1,10 @@
 export interface IO {
-  string(prompt: string): Promise<string>
-  boolean(prompt: string): Promise<boolean>
+  string(prompt: string): Promise<string>;
+  boolean(prompt: string): Promise<boolean>;
 }
 
 export interface Context {
-  sessionId: string;
+  abortController: AbortController;
 }
 
 export interface Result {
@@ -12,4 +12,4 @@ export interface Result {
   success: boolean;
 }
 
-export type Workflow = (io: IO, ctx: Context) => Promise<Result>
+export type Workflow = (io: IO, ctx: Context) => Promise<Result>;
