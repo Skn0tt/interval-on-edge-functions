@@ -64,8 +64,10 @@ UI and workflow need a two-way communication
 channel. Ideally, this would be a websocket.
 Edge Functions don't directly support them, so we'll use [SimpleMQ](https://gitlab.com/Skn0tt/simplemq) as a relay for now.
 
-> I've tried using WebSockets, but to no success: https://github.com/Skn0tt/interval-on-edge-functions/tree/attempt-websockets
+> [I've tried using WebSockets](https://github.com/Skn0tt/interval-on-edge-functions/tree/attempt-websockets) directly from the Edge Function, but to no success.
 > Netlify seems to strip out the `Update` header, which prevents WebSocket connections from initialising.
+
+> [I've tried using `BroadcastChannel` + `EventSource`](https://github.com/Skn0tt/interval-on-edge-functions/tree/attempt-broadcastchannel), as a replacement for SimpleMQ, but `BroadcastChannel` seems to be [unstable](https://github.com/denoland/deno/blob/6bb555b549a203ebe921260379f3da70787be655/ext/broadcast_channel/lib.rs#L44), and thus unavailable, at the moment.
 
 ## Try it out
 
