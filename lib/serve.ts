@@ -5,7 +5,7 @@ import { EdgeFunction } from "netlify:edge";
 
 export function serve(workflows: Record<string, Workflow>): EdgeFunction {
   return async function (request) {
-    const workflowName = new URL(request.url).searchParams.get("workflow");
+    const workflowName = new URL(request.url).searchParams.get("name");
     if (!workflowName) {
       return new Response(JSON.stringify(Object.keys(workflows)), {
         headers: {
@@ -21,43 +21,22 @@ export function serve(workflows: Record<string, Workflow>): EdgeFunction {
       });
     }
 
-    const sessionId = crypto.randomUUID();
-    const simpleMQEndpoint = Deno.env.get("SIMPLEMQ_WS_ENDPOINT");
-    if (!simpleMQEndpoint) {
-      throw new Error("SIMPLEMQ_WS_ENDPOINT env var needs to be set");
-    }
+    const { response, socket } = Deno.upgradeWebSocket(request);
 
-    const sock = new WebSocket(simpleMQEndpoint);
-    sock.onopen = () => {
-      sock.send(sessionId);
+    socket.onopen = async () => {
+      const session = new Session(workflow, async (message) => {
+        socket.send(JSON.stringify(message));
+      });
+
+      socket.onmessage = async (event) => {
+        const payload = JSON.parse(event.data) as ProtocolMessage;
+        await session.handle(payload);
+      };
+
+      await session.run();
+      socket.close();
     };
 
-    const session = new Session(
-      sessionId,
-      workflow,
-      async (message) => {
-        sock.send(JSON.stringify(message));
-      },
-      () => {
-        sock.close();
-      }
-    );
-
-    sock.onmessage = async (event) => {
-      const payload = JSON.parse(event.data) as ProtocolMessage;
-      await session.handle(payload);
-    };
-
-    return new Response(
-      JSON.stringify({
-        endpoint: simpleMQEndpoint,
-        sessionId,
-      }),
-      {
-        headers: {
-          "content-type": "application/json",
-        },
-      }
-    );
+    return response;
   };
 }

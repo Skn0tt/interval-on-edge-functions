@@ -2,20 +2,13 @@ import { Workflow, Result } from "./workflow.ts";
 import { ProtocolMessage, Reply } from "./protocol.ts";
 
 export class Session {
-  public result?: Result;
-
   constructor(
-    private readonly sessionId: string,
     private readonly workflow: Workflow,
-    private readonly dispatch: (message: ProtocolMessage) => Promise<void>,
-    private readonly onResult: (result: Result) => void
+    private readonly dispatch: (message: ProtocolMessage) => Promise<void>
   ) {}
 
   async handle(message: ProtocolMessage) {
     switch (message.type) {
-      case "start":
-        this.start();
-        return;
       case "reply":
         this.reply(message);
         return;
@@ -50,26 +43,20 @@ export class Session {
     prompt(message.result);
   }
 
-  start() {
-    this.workflow(
+  async run(): Promise<Result> {
+    const result = await this.workflow(
       {
         boolean: (q) => this.prompt(q, "boolean"),
         string: (q) => this.prompt(q, "string"),
       },
       {
-        sessionId: this.sessionId,
+        sessionId: "",
       }
-    )
-      .then(async (result) => {
-        this.result = result;
-        await this.dispatch({
-          type: "result",
-          payload: result,
-        });
-        this.onResult(result);
-      })
-      .catch((failure) => {
-        console.error(failure);
-      });
+    );
+    await this.dispatch({
+      type: "result",
+      payload: result,
+    });
+    return result;
   }
 }

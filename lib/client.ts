@@ -8,7 +8,7 @@ export interface PromptUI {
 
 export interface Workflow {
   name: string;
-  start(promptUI: PromptUI): Promise<SessionState>;
+  start(promptUI: PromptUI): Promise<Result>;
 }
 
 export class SessionState {
@@ -44,42 +44,34 @@ export class Client {
   private async start(
     workflowName: string,
     promptUI: PromptUI
-  ): Promise<SessionState> {
-    const response = await fetch(`${this.endpoint}?workflow=${workflowName}`);
-    const { endpoint, sessionId } = await response.json();
-    const sessionState = new SessionState(sessionId);
-
-    const socket = new WebSocket(endpoint);
-    function dispatch(message: ProtocolMessage) {
-      socket.send(JSON.stringify(message));
-    }
-
-    socket.addEventListener("open", () => {
-      socket.send(sessionId);
-      dispatch({
-        type: "start",
-      });
-    });
-
-    socket.onmessage = async (event) => {
-      const message = JSON.parse(event.data) as ProtocolMessage;
-
-      switch (message.type) {
-        case "prompt":
-          const method = promptUI[message.kind];
-          const answer = await method(message.prompt);
-          dispatch({
-            type: "reply",
-            id: message.id,
-            result: answer,
-          });
-          return;
-        case "result":
-          sessionState.setResult(message.payload);
-          return;
+  ): Promise<Result> {
+    return new Promise<Result>((resolve) => {
+      const url = new URL(this.endpoint, location as any);
+      url.searchParams.set("name", workflowName);
+      url.protocol = url.protocol.replace("http", "ws");
+      const socket = new WebSocket(url.toString());
+      function dispatch(message: ProtocolMessage) {
+        socket.send(JSON.stringify(message));
       }
-    };
 
-    return sessionState;
+      socket.onmessage = async (event) => {
+        const message = JSON.parse(event.data) as ProtocolMessage;
+
+        switch (message.type) {
+          case "prompt":
+            const method = promptUI[message.kind];
+            const answer = await method(message.prompt);
+            dispatch({
+              type: "reply",
+              id: message.id,
+              result: answer,
+            });
+            return;
+          case "result":
+            resolve(message.payload);
+            return;
+        }
+      };
+    });
   }
 }

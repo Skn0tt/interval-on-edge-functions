@@ -1,6 +1,4 @@
-export interface StartMessage {
-  type: "start";
-}
+import { Result } from "./workflow.ts"
 
 export interface Prompt {
   type: "prompt";
@@ -15,9 +13,9 @@ export interface Reply {
   result: any;
 }
 
-export interface Result {
+export interface ResultMessage {
   type: "result";
-  payload: any;
+  payload: Result;
 }
 
-export type ProtocolMessage = StartMessage | Prompt | Reply | Result;
+export type ProtocolMessage = Prompt | Reply | ResultMessage;
