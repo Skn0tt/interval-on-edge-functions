@@ -2,7 +2,7 @@
 
 I stumbled accross https://interval.com, and found it *really* interesting.
 It's a tool for rapidly building internal tooling based on an existing codebase,
-and uses an interesting paradigm where state is kept on a server,
+and uses an interesting paradigm where state is kept in a long-lived session on the server,
 and the UI is "remote-controlled" by it.
 
 It got me thinking: What would it take to implement something like this via Edge Functions?
@@ -56,7 +56,7 @@ These workflows idle for most of the time, so they should be relatively easy to 
 
 ## How does the PoC work?
 
-The goal is to re-implement the functionality described above as simple as possible,
+The goal of this repoistory is to re-implement the functionality described above as simple as possible,
 and to use Netlify Edge Functions for it.
 The Edge Function implements the workflow, makes requests to databases and APIs, a single-page UI
 acts as a remote-controlled UI.
