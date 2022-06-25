@@ -1,11 +1,20 @@
 import { Workflow } from "./workflow.ts";
-import { Session, ProtocolMessage } from "./session.ts";
+import { Session } from "./session.ts";
+import { ProtocolMessage } from "./protocol.ts";
 import { EdgeFunction } from "netlify:edge";
 
 export function serve(workflows: Record<string, Workflow>): EdgeFunction {
   return async function (request) {
     const workflowName = new URL(request.url).searchParams.get("workflow");
-    const workflow = workflows[workflowName ?? ""];
+    if (!workflowName) {
+      return new Response(JSON.stringify(Object.keys(workflows)), {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+    }
+
+    const workflow = workflows[workflowName];
     if (!workflow) {
       return new Response(null, {
         status: 404,
@@ -32,6 +41,16 @@ export function serve(workflows: Record<string, Workflow>): EdgeFunction {
       await session.handle(payload);
     };
 
-    return new Response(sessionId);
+    return new Response(
+      JSON.stringify({
+        endpoint: simpleMQEndpoint,
+        sessionId,
+      }),
+      {
+        headers: {
+          "content-type": "application/json",
+        },
+      }
+    );
   };
 }

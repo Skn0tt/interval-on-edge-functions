@@ -1,1 +1,11 @@
-{}
+{
+  "dependencies": {
+    "sweetalert": "^2.1.2",
+    "vite": "^2.9.12",
+    "water.css": "^2.1.1"
+  },
+  "scripts": {
+    "start": "vite web",
+    "build": "vite build web"
+  }
+}

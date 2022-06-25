@@ -62,7 +62,7 @@ The Edge Function implements the workflow, makes requests to databases and APIs,
 acts as a remote-controlled UI.
 UI and workflow need a two-way communication
 channel. Ideally, this would be a websocket.
-They're not supported on Edge Functions, so we'll use a [Pusher](https://pusher.com) channel for now.
+Edge Functions don't directly support them, so we'll use [SimpleMQ](https://gitlab.com/Skn0tt/simplemq) as a relay for now.
 
 ## Try it out
 

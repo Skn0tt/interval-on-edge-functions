@@ -1,6 +1,6 @@
 export interface IO {
   string(prompt: string): Promise<string>
-  bool(prompt: string): Promise<boolean>
+  boolean(prompt: string): Promise<boolean>
 }
 
 export interface Context {

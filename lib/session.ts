@@ -1,23 +1,5 @@
 import { Workflow, Result } from "./workflow.ts";
-
-interface StartMessage {
-  type: "start";
-}
-
-interface Prompt {
-  type: "prompt";
-  prompt: string;
-  kind: "string" | "boolean";
-  id: string;
-}
-
-interface Reply {
-  type: "reply";
-  id: string;
-  result: any;
-}
-
-export type ProtocolMessage = StartMessage | Prompt | Reply;
+import { ProtocolMessage, Reply } from "./protocol.ts";
 
 export class Session {
   public result?: Result;
@@ -37,7 +19,6 @@ export class Session {
         this.reply(message);
         return;
       default:
-        console.error("not handled: ", message);
         return;
     }
   }
@@ -71,7 +52,7 @@ export class Session {
   start() {
     this.workflow(
       {
-        bool: (q) => this.prompt(q, "boolean"),
+        boolean: (q) => this.prompt(q, "boolean"),
         string: (q) => this.prompt(q, "string"),
       },
       {
@@ -80,6 +61,10 @@ export class Session {
     )
       .then((result) => {
         this.result = result;
+        this.dispatch({
+          type: "result",
+          payload: result,
+        });
       })
       .catch((failure) => {
         console.error(failure);
