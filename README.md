@@ -64,6 +64,8 @@ UI and workflow need a two-way communication
 channel. Ideally, this would be a websocket.
 Edge Functions don't directly support them, so we'll use [SimpleMQ](https://gitlab.com/Skn0tt/simplemq) as a relay for now.
 
+> I've tried using WebSockets, but to no success: https://github.com/Skn0tt/interval-on-edge-functions/tree/attempt-websockets
+
 ## Try it out
 
 Go to https://interval-on-edge-functions.netlify.app to check it out,
