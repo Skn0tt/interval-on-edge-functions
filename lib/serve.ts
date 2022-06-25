@@ -32,9 +32,16 @@ export function serve(workflows: Record<string, Workflow>): EdgeFunction {
       sock.send(sessionId);
     };
 
-    const session = new Session(sessionId, workflow, async (message) => {
-      sock.send(JSON.stringify(message));
-    });
+    const session = new Session(
+      sessionId,
+      workflow,
+      async (message) => {
+        sock.send(JSON.stringify(message));
+      },
+      () => {
+        sock.close();
+      }
+    );
 
     sock.onmessage = async (event) => {
       const payload = JSON.parse(event.data) as ProtocolMessage;

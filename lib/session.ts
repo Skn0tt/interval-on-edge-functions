@@ -7,7 +7,8 @@ export class Session {
   constructor(
     private readonly sessionId: string,
     private readonly workflow: Workflow,
-    private readonly dispatch: (message: ProtocolMessage) => Promise<void>
+    private readonly dispatch: (message: ProtocolMessage) => Promise<void>,
+    private readonly onResult: (result: Result) => void
   ) {}
 
   async handle(message: ProtocolMessage) {
@@ -59,12 +60,13 @@ export class Session {
         sessionId: this.sessionId,
       }
     )
-      .then((result) => {
+      .then(async (result) => {
         this.result = result;
-        this.dispatch({
+        await this.dispatch({
           type: "result",
           payload: result,
         });
+        this.onResult(result);
       })
       .catch((failure) => {
         console.error(failure);
