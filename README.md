@@ -65,6 +65,7 @@ channel. Ideally, this would be a websocket.
 Edge Functions don't directly support them, so we'll use [SimpleMQ](https://gitlab.com/Skn0tt/simplemq) as a relay for now.
 
 > I've tried using WebSockets, but to no success: https://github.com/Skn0tt/interval-on-edge-functions/tree/attempt-websockets
+> Netlify seems to strip out the `Update` header, which prevents WebSocket connections from initialising.
 
 ## Try it out
 
